@@ -1,13 +1,12 @@
 from datetime import datetime
 import streamlit as st
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.embeddings.openai import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from custom_imports.retriever import retriever
-from langchain_core.messages import AIMessage
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings.openai import OpenAIEmbeddings
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 # Configures the default settings of the page.
 st.set_page_config(page_title="2022BankAnnualReportChatbot",
@@ -44,7 +43,7 @@ if "messages" not in st.session_state:
 
 # Initialize the vectorstore and retriever
 # Read the stored embeddings from the vectorstore
-embeddings = OpenAIEmbeddings()
+embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
 vectorstore_db = FAISS.load_local("./vectorstore", embeddings)
 
@@ -110,7 +109,7 @@ for msg in st.session_state.messages:
 
 # If user inputs a new prompt, generate and draw a new response
 if prompt := st.chat_input():
-    st.chat_message(name="human", avatar="🧑").write(prompt 
+    st.chat_message(name="human", avatar="🧑").write(prompt)
 
     # Generate a response from AI
     response = None
