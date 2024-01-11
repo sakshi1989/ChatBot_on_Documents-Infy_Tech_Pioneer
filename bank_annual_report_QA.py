@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 import streamlit as st
 from langchain.chat_models import ChatOpenAI
@@ -6,10 +5,13 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from custom_imports.retriever import retriever
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings.openai import OpenAIEmbeddings
 
 # Configures the default settings of the page.
-st.set_page_config(page_title="2022BankAnnualReportChatbot", page_icon=":robot_face:", layout="centered", initial_sidebar_state="auto")
+st.set_page_config(page_title="2022BankAnnualReportChatbot",
+                   page_icon=":robot_face:", layout="centered", initial_sidebar_state="auto")
 
 # Display text in title formatting.
 st.title(":blue[Welcome to the 2022 Banks Annual Report ChatBot] :robot_face:")
@@ -24,10 +26,6 @@ st.markdown(f"""
     Bank of America <img src="{bofa_logo_path}" width="40" height="40">  2022 Annual Report</p>
 </div>
 """, unsafe_allow_html=True)
-
-# # Set up memory
-# msgs = StreamlitChatMessageHistory(key="langchain_messages")
-# memory = ConversationSummaryMemory(chat_memory=msgs, llm=llm)
 
 # Get an OpenAI API Key before continuing
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
@@ -44,8 +42,18 @@ if "messages" not in st.session_state:
         ),
     ]
 
+# Initialize the vectorstore and retriever
+# Read the stored embeddings from the vectorstore
+embeddings = OpenAIEmbeddings()
+
+vectorstore_db = FAISS.load_local("./vectorstore", embeddings)
+
+retriever = vectorstore_db.as_retriever(search_type="similarity_score_threshold",
+                                        search_kwargs={"score_threshold": 0.65})
+
 # Define the llm model
-llm = ChatOpenAI(temperature=0.3, model='gpt-3.5-turbo-16k', openai_api_key=openai_api_key)
+llm = ChatOpenAI(temperature=0.3, model='gpt-3.5-turbo-16k',
+                 openai_api_key=openai_api_key)
 
 # Set up the LLMChain, passing in memory
 contextualize_ques_system_prompt = """Given a chat history and the latest user question \
@@ -80,16 +88,17 @@ qa_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+
 def contextualized_question(input: dict):
-    if input.get("chat_history"):        
+    if input.get("chat_history"):
         return contextualize_ques_chain
-    else:       
+    else:
         return input["question"]
 
 
 rag_chain = (
     RunnablePassthrough.assign(
-        context=contextualized_question | retriever 
+        context=contextualized_question | retriever
     )
     | qa_prompt
     | llm
@@ -101,15 +110,15 @@ for msg in st.session_state.messages:
 
 # If user inputs a new prompt, generate and draw a new response
 if prompt := st.chat_input():
-    st.chat_message(name = "human", avatar="🧑").write(prompt)    
+    st.chat_message(name="human", avatar="🧑").write(prompt 
 
     # Generate a response from AI
     response = None
     with st.spinner("Thinking..."):
-        response = rag_chain.invoke({"question": prompt, "chat_history": st.session_state.messages})
-        st.chat_message(name = "bot", avatar="🤖").write(response.content)
-    
+        response = rag_chain.invoke(
+            {"question": prompt, "chat_history": st.session_state.messages})
+        st.chat_message(name="bot", avatar="🤖").write(response.content)
+
     human_message = HumanMessage(content=prompt, time=datetime.now())
     ai_message = AIMessage(content=response.content, time=datetime.now())
     st.session_state.messages.extend([human_message, ai_message])
-    
