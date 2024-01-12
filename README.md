@@ -15,6 +15,5 @@ A chatbot created to answer the questions from the PDF files. The Retrieval-Augm
 2. For modifications to the application, please edit the `bank_annual_report_QA.py` file. To execute the application on your local machine, use the command: `streamlit run bank_annual_report_QA.py`.
 
 ## _**Demo**_
-<video src="Media1.mp4" controls title="Title"></video>
-
+https://github.com/sakshi1989/InfyTech_Docs_ChatBot/assets/64280320/e0be6397-1f9b-4528-8eb9-1bcb1c810c74
 
