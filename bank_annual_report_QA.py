@@ -15,6 +15,11 @@ st.set_page_config(page_title="2022BankAnnualReportChatbot",
 # Display text in title formatting.
 st.title(":blue[Welcome to the 2022 Banks Annual Report ChatBot] :robot_face:")
 
+# Path of the bank logos
+# To support the static media embedding that do not not work with normal media elements
+# enable the feature "STREAMLIT_SERVER_ENABLE_STATIC_SERVING" in the .streamlit/config.toml file.
+# Also store the images in the static folder and access it using app/static/<image_name>
+# Ref:- https://docs.streamlit.io/library/advanced-features/static-file-serving
 bofa_logo_path = 'app/static/bofa_logo.png'
 wf_logo_path = 'app/static/wf_logo.png'
 
@@ -54,7 +59,7 @@ retriever = vectorstore_db.as_retriever(search_type="similarity_score_threshold"
 llm = ChatOpenAI(temperature=0.3, model='gpt-3.5-turbo-16k',
                  openai_api_key=openai_api_key)
 
-# Set up the LLMChain, passing in memory
+# Set up the context based LLMChain, passing in memory
 contextualize_ques_system_prompt = """Given a chat history and the latest user question \
 which might refer to a context in the chat history, formulate a standalone question \
 which can be understood without the chat history. Do NOT answer the question, \
@@ -72,7 +77,8 @@ contextualize_question_prompt = ChatPromptTemplate.from_messages(
 )
 contextualize_ques_chain = contextualize_question_prompt | llm | StrOutputParser()
 
-# The context parameter is the placeholder for the documents retrieved by the retriever
+# The context parameter is the placeholder for the documents retrieved by the retriever & the
+# contextualized question created
 qa_system_prompt = """You are an assistant for question-answering tasks. \
 Use the following pieces of retrieved context to answer the question. \
 If you don't know the answer, just say that you don't know.
@@ -120,4 +126,6 @@ if prompt := st.chat_input():
 
     human_message = HumanMessage(content=prompt, time=datetime.now())
     ai_message = AIMessage(content=response.content, time=datetime.now())
+
+    # Store the messages in the session state (maintain history)
     st.session_state.messages.extend([human_message, ai_message])
