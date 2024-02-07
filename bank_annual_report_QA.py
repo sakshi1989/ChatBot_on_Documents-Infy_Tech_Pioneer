@@ -1,5 +1,6 @@
-from datetime import datetime
 import streamlit as st
+import openai
+from datetime import datetime
 from langchain_community.embeddings.openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import AIMessage, HumanMessage
@@ -36,6 +37,15 @@ openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 if not openai_api_key:
     st.info("Enter an OpenAI API Key to continue")
     st.stop()
+else:
+    # Check the validity of the API Key
+    client = openai.OpenAI(api_key=openai_api_key)
+    try:
+        client.models.list()
+    except openai.AuthenticationError:
+        st.info("Invalid API Key")
+        st.stop()     
+
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -57,7 +67,7 @@ retriever = vectorstore_db.as_retriever(search_type="similarity_score_threshold"
 
 # Define the llm model
 llm = ChatOpenAI(temperature=0.3, model='gpt-3.5-turbo-16k',
-                 openai_api_key=openai_api_key)
+                openai_api_key=openai_api_key)
 
 # Set up the context based LLMChain, passing in memory
 contextualize_ques_system_prompt = """Given a chat history and the latest user question \
@@ -79,9 +89,12 @@ contextualize_ques_chain = contextualize_question_prompt | llm | StrOutputParser
 
 # The context parameter is the placeholder for the documents retrieved by the retriever & the
 # contextualized question created
-qa_system_prompt = """You are an assistant for question-answering tasks. \
-Use the following pieces of retrieved context to answer the question. \
-If you don't know the answer, just say that you don't know.
+qa_system_prompt = """You are an assistant for question-answering tasks.
+Answer the user's question based on the information in the documents and the provided context.
+
+You always follow these guidelines:
+    -If the answer isn't available within the documents, say "I don't know" 
+    -Do not give answers from your knowledge
 
 {context}"""
 
@@ -111,7 +124,7 @@ rag_chain = (
 
 # Render current messages from StreamlitChatMessageHistory
 for msg in st.session_state.messages:
-    st.chat_message(msg.type).write(msg.content)
+    st.chat_message(msg.type, avatar="🧑" if msg.type == 'human' else "🤖").write(msg.content)
 
 # If user inputs a new prompt, generate and draw a new response
 if prompt := st.chat_input():
@@ -122,7 +135,8 @@ if prompt := st.chat_input():
     with st.spinner("Thinking..."):
         response = rag_chain.invoke(
             {"question": prompt, "chat_history": st.session_state.messages})
-        st.chat_message(name="bot", avatar="🤖").write(response.content)
+        print(response)
+        st.chat_message(name="ai", avatar="🤖").write(response.content)
 
     human_message = HumanMessage(content=prompt, time=datetime.now())
     ai_message = AIMessage(content=response.content, time=datetime.now())
