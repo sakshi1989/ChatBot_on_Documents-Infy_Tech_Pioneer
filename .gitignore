@@ -160,3 +160,7 @@ cython_debug/
 #.idea/
 
 Media1.mp4
+
+data/
+
+data1/
